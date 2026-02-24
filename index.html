@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock Redistribution Planner</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0C0E11;
+  --surface: #13161B;
+  --surface-raised: #1A1E25;
+  --surface-hover: #21262E;
+  --border: #2A2F3A;
+  --border-light: #353B48;
+  --text: #E8EAED;
+  --text-dim: #8B919D;
+  --text-muted: #5A6170;
+  --accent: #F0C246;
+  --accent-dim: #C49A1A;
+  --positive: #34D399;
+  --positive-bg: rgba(52, 211, 153, 0.08);
+  --positive-border: rgba(52, 211, 153, 0.2);
+  --negative: #F87171;
+  --negative-bg: rgba(248, 113, 113, 0.08);
+  --negative-border: rgba(248, 113, 113, 0.2);
+  --neutral-bg: rgba(139, 145, 157, 0.06);
+  --locked-bg: rgba(240, 194, 70, 0.06);
+  --locked-border: rgba(240, 194, 70, 0.25);
+  --font-body: 'Instrument Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 1.25rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 1rem; }
+.logo-mark {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  padding: 6px;
+  clip-path: polygon(0 0, 100% 0, 100% 75%, 75% 100%, 0 100%);
+}
+.logo-mark span {
+  background: var(--bg);
+  opacity: 0.7;
+}
+.logo-mark span:nth-child(3) { opacity: 1; }
+.header h1 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.header h1 small {
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 0.5rem;
+  font-size: 0.85rem;
+}
+.header-actions { display: flex; gap: 0.5rem; }
+
+/* ── BUTTONS ── */
+.btn {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--surface-hover); color: var(--text); border-color: var(--border-light); }
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+.btn svg { width: 15px; height: 15px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── UPLOAD ZONE ── */
+.upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 60px);
+  padding: 2rem;
+  animation: fadeIn 0.4s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.upload-box {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 4rem 5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--surface);
+  max-width: 540px;
+  width: 100%;
+  position: relative;
+}
+.upload-box:hover, .upload-box.dragover {
+  border-color: var(--accent);
+  background: rgba(240, 194, 70, 0.03);
+}
+.upload-box.dragover { transform: scale(1.01); }
+.upload-icon {
+  width: 56px; height: 56px;
+  margin: 0 auto 1.25rem;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: var(--surface-raised);
+}
+.upload-icon svg { width: 24px; height: 24px; }
+.upload-box h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+.upload-box p { color: var(--text-muted); font-size: 0.9rem; }
+.upload-box input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.upload-hint {
+  margin-top: 1.5rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+}
+
+/* ── MAIN LAYOUT ── */
+.app { display: none; animation: fadeIn 0.4s ease; }
+.app.active { display: block; }
+
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.stat-card {
+  background: var(--surface);
+  padding: 1.25rem 1.5rem;
+}
+.stat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.stat-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: var(--surface-raised);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.stat-values {
+  display: flex;
+  gap: 1.5rem;
+  align-items: baseline;
+}
+.stat-main {
+  font-family: var(--font-mono);
+  font-size: 1.75rem;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.03em;
+}
+.stat-details {
+  display: flex;
+  gap: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.stat-details span b { color: var(--text-dim); font-weight: 500; }
+.stat-target {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+.stat-target b { color: var(--accent); font-weight: 500; }
+
+/* ── TABS ── */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0 1.5rem;
+  gap: 0;
+}
+.tab {
+  padding: 0.85rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  position: relative;
+  user-select: none;
+}
+.tab:hover { color: var(--text-dim); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab .badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  margin-left: 0.4rem;
+  color: var(--text-muted);
+}
+.tab.active .badge { background: rgba(240, 194, 70, 0.1); border-color: var(--locked-border); color: var(--accent); }
+
+/* ── TABLE PANEL ── */
+.panel { display: none; }
+.panel.active { display: block; }
+
+.table-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.table-controls-left { display: flex; align-items: center; gap: 1rem; }
+.search-box {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.4rem 0.75rem;
+  color: var(--text);
+  width: 200px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-box:focus { border-color: var(--accent); }
+.search-box::placeholder { color: var(--text-muted); }
+.filter-info { font-size: 0.8rem; color: var(--text-muted); font-family: var(--font-mono); }
+
+/* ── DATA TABLE ── */
+.table-wrap {
+  overflow-x: auto;
+  max-height: calc(100vh - 320px);
+  overflow-y: auto;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.data-table thead { position: sticky; top: 0; z-index: 10; }
+.data-table th {
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+}
+.data-table th:hover { color: var(--text-dim); }
+.data-table th.col-group-current { border-bottom-color: var(--text-muted); }
+.data-table th.col-group-target { border-bottom-color: var(--accent); }
+.data-table th.col-group-diff { border-bottom-color: var(--positive); }
+.data-table td {
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.data-table tbody tr { transition: background 0.1s; }
+.data-table tbody tr:hover { background: var(--surface-hover); }
+.data-table tbody tr.locked { background: var(--locked-bg); }
+
+.cell-entity {
+  font-weight: 500;
+  color: var(--text);
+  min-width: 60px;
+}
+.cell-current { color: var(--text-dim); }
+.cell-target {
+  color: var(--accent);
+  font-weight: 500;
+}
+.cell-diff-positive {
+  color: var(--positive);
+  background: var(--positive-bg);
+}
+.cell-diff-negative {
+  color: var(--negative);
+  background: var(--negative-bg);
+}
+.cell-diff-zero { color: var(--text-muted); }
+
+/* Editable target cells */
+.target-input {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0.15rem 0.35rem;
+  color: var(--accent);
+  font-weight: 500;
+  width: 48px;
+  text-align: left;
+  outline: none;
+  transition: all 0.15s;
+}
+.target-input:hover { border-color: var(--border); background: var(--surface-raised); }
+.target-input:focus { border-color: var(--accent); background: var(--surface-raised); }
+
+/* Lock toggle */
+.lock-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0.2rem;
+  color: var(--text-muted);
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+}
+.lock-btn:hover { color: var(--text-dim); border-color: var(--border); }
+.lock-btn.locked { color: var(--accent); }
+.lock-btn svg { width: 14px; height: 14px; }
+
+/* ── TRANSFER TABLE ── */
+.transfer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.transfer-table th {
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+  padding: 0.6rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.transfer-table td {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+.transfer-table tbody tr:hover { background: var(--surface-hover); }
+.transfer-from { color: var(--negative); }
+.transfer-to { color: var(--positive); }
+.transfer-qty { color: var(--accent); font-weight: 500; }
+.transfer-type { color: var(--text-dim); }
+.no-transfers {
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .header { padding: 1rem; }
+  .upload-box { padding: 2.5rem 2rem; }
+  .stats-bar { grid-template-columns: 1fr; }
+  .stat-card { padding: 1rem; }
+}
+
+/* ── TOOLTIP ── */
+.tt {
+  position: relative;
+}
+.tt::after {
+  content: attr(data-tt);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  font-family: var(--font-body);
+  font-weight: 400;
+  z-index: 999;
+}
+.tt:hover::after { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo-mark"><span></span><span></span><span></span><span></span></div>
+    <h1>Redistribution Planner<small id="fileNameDisplay"></small></h1>
+  </div>
+  <div class="header-actions" id="headerActions" style="display:none;">
+    <button class="btn" id="btnReset" onclick="resetAll()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      New File
+    </button>
+    <button class="btn" id="btnExportTargets" onclick="exportTargets()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export Targets
+    </button>
+    <button class="btn" id="btnExportTransfers" onclick="exportTransfers()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export Transfers
+    </button>
+  </div>
+</div>
+
+<!-- UPLOAD -->
+<div class="upload-zone" id="uploadZone">
+  <div class="upload-box" id="uploadBox">
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+    <div class="upload-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </div>
+    <h2>Drop your spreadsheet here</h2>
+    <p>CSV or XLSX with Entity ID + Type columns</p>
+  </div>
+  <div class="upload-hint">Columns: Entity ID &middot; Type 1 &middot; Type 2 &middot; Type 3</div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar"></div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <div class="tab active" data-tab="allocation" onclick="switchTab(this)">Allocation Table <span class="badge" id="entityCount">0</span></div>
+    <div class="tab" data-tab="transfers" onclick="switchTab(this)">Transfer Manifest <span class="badge" id="transferCount">0</span></div>
+  </div>
+
+  <!-- Allocation Panel -->
+  <div class="panel active" id="panel-allocation">
+    <div class="table-controls">
+      <div class="table-controls-left">
+        <input type="text" class="search-box" id="searchBox" placeholder="Filter entities..." oninput="filterTable()">
+        <span class="filter-info" id="filterInfo"></span>
+      </div>
+      <div style="display:flex;gap:0.5rem;">
+        <button class="btn tt" data-tt="Reset all targets to calculated values" onclick="resetTargets()">Reset Targets</button>
+        <button class="btn tt" data-tt="Unlock all locked entities" onclick="unlockAll()">Unlock All</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="allocationTable">
+        <thead id="allocHead"></thead>
+        <tbody id="allocBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Transfers Panel -->
+  <div class="panel" id="panel-transfers">
+    <div class="table-controls">
+      <div class="table-controls-left">
+        <span class="filter-info" id="transferInfo"></span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="transfer-table" id="transferTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Type</th>
+            <th>Qty</th>
+            <th>From Entity</th>
+            <th>To Entity</th>
+          </tr>
+        </thead>
+        <tbody id="transferBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───
+let rawData = [];        // [{id, values: [v1, v2, v3]}]
+let typeNames = [];      // ["Type 1", "Type 2", "Type 3"]
+let targets = [];        // [{id, values: [t1, t2, t3]}]
+let locked = new Set();  // locked entity IDs
+let transfers = [];      // [{type, typeIdx, qty, from, to}]
+let sortCol = null;
+let sortDir = 1;
+
+// ─── FILE HANDLING ───
+const fileInput = document.getElementById('fileInput');
+const uploadBox = document.getElementById('uploadBox');
+
+uploadBox.addEventListener('dragover', e => { e.preventDefault(); uploadBox.classList.add('dragover'); });
+uploadBox.addEventListener('dragleave', () => uploadBox.classList.remove('dragover'));
+uploadBox.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadBox.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = new Uint8Array(e.target.result);
+    const wb = XLSX.read(data, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+    parseData(json, file.name);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseData(rows, fileName) {
+  if (rows.length < 2) return alert('File appears empty.');
+
+  // Find header row (first row with content)
+  const header = rows[0];
+  typeNames = header.slice(1).map((h, i) => h ? String(h).trim() : `Type ${i + 1}`);
+
+  rawData = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row[0] == null || row[0] === '') continue;
+    const id = row[0];
+    // Skip summary rows
+    if (typeof id === 'string' && /average|total|sum|mean/i.test(id)) continue;
+    const values = [];
+    for (let j = 1; j < header.length; j++) {
+      let v = row[j];
+      if (v == null || v === '' || v === ' ') v = 0;
+      v = parseFloat(v);
+      values.push(isNaN(v) ? 0 : v);
+    }
+    rawData.push({ id, values });
+  }
+
+  if (rawData.length === 0) return alert('No valid data rows found.');
+
+  document.getElementById('fileNameDisplay').textContent = fileName;
+  locked.clear();
+  calculateTargets();
+  computeTransfers();
+  renderAll();
+
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('headerActions').style.display = 'flex';
+}
+
+// ─── CALCULATION ───
+function calculateTargets() {
+  const n = rawData.length;
+  const typeCount = typeNames.length;
+
+  // For each type, compute totals and distribute
+  targets = rawData.map(r => ({ id: r.id, values: new Array(typeCount).fill(0) }));
+
+  for (let t = 0; t < typeCount; t++) {
+    // Sum only from non-locked entities for the pool, but actually:
+    // Total stock is fixed. Locked entities keep their current values.
+    // Remaining stock goes to unlocked entities.
+    let totalStock = 0;
+    for (const r of rawData) totalStock += r.values[t];
+
+    let lockedStock = 0;
+    let unlockedCount = 0;
+    for (let i = 0; i < rawData.length; i++) {
+      if (locked.has(rawData[i].id)) {
+        lockedStock += rawData[i].values[t];
+      } else {
+        unlockedCount++;
+      }
+    }
+
+    const remaining = totalStock - lockedStock;
+    const floorVal = Math.floor(remaining / Math.max(1, unlockedCount));
+    const remainder = Math.round(remaining - floorVal * unlockedCount);
+
+    // Assign targets: entities sorted by current value descending get the ceil
+    const unlocked = rawData
+      .map((r, i) => ({ idx: i, current: r.values[t] }))
+      .filter(x => !locked.has(rawData[x.idx].id))
+      .sort((a, b) => b.current - a.current);
+
+    for (let j = 0; j < unlocked.length; j++) {
+      const idx = unlocked[j].idx;
+      targets[idx].values[t] = j < remainder ? floorVal + 1 : floorVal;
+    }
+
+    // Locked entities keep current
+    for (let i = 0; i < rawData.length; i++) {
+      if (locked.has(rawData[i].id)) {
+        targets[i].values[t] = rawData[i].values[t];
+      }
+    }
+  }
+}
+
+function computeTransfers() {
+  transfers = [];
+  const typeCount = typeNames.length;
+
+  for (let t = 0; t < typeCount; t++) {
+    // Build surplus/deficit lists
+    const surplus = [];
+    const deficit = [];
+
+    for (let i = 0; i < rawData.length; i++) {
+      const diff = rawData[i].values[t] - targets[i].values[t];
+      if (diff > 0.001) surplus.push({ id: rawData[i].id, amount: diff });
+      else if (diff < -0.001) deficit.push({ id: rawData[i].id, amount: -diff });
+    }
+
+    // Sort descending
+    surplus.sort((a, b) => b.amount - a.amount);
+    deficit.sort((a, b) => b.amount - a.amount);
+
+    // Greedy match
+    let si = 0, di = 0;
+    while (si < surplus.length && di < deficit.length) {
+      const qty = Math.min(surplus[si].amount, deficit[di].amount);
+      if (qty > 0.001) {
+        transfers.push({
+          type: typeNames[t],
+          typeIdx: t,
+          qty: Math.round(qty * 100) / 100,
+          from: surplus[si].id,
+          to: deficit[di].id
+        });
+      }
+      surplus[si].amount -= qty;
+      deficit[di].amount -= qty;
+      if (surplus[si].amount < 0.001) si++;
+      if (deficit[di].amount < 0.001) di++;
+    }
+  }
+}
+
+// ─── RENDERING ───
+function renderAll() {
+  renderStats();
+  renderAllocationTable();
+  renderTransfers();
+  document.getElementById('entityCount').textContent = rawData.length;
+  document.getElementById('transferCount').textContent = transfers.length;
+}
+
+function renderStats() {
+  const bar = document.getElementById('statsBar');
+  bar.innerHTML = '';
+  const n = rawData.length;
+
+  for (let t = 0; t < typeNames.length; t++) {
+    const vals = rawData.map(r => r.values[t]);
+    const total = vals.reduce((s, v) => s + v, 0);
+    const avg = total / n;
+    const mn = Math.min(...vals);
+    const mx = Math.max(...vals);
+    const variance = vals.reduce((s, v) => s + (v - avg) ** 2, 0) / n;
+    const sd = Math.sqrt(variance);
+    const floorVal = Math.floor(avg);
+    const ceilVal = floorVal + 1;
+    const ceilCount = Math.round(total - floorVal * n);
+    const floorCount = n - ceilCount;
+
+    const card = document.createElement('div');
+    card.className = 'stat-card';
+    card.innerHTML = `
+      <div class="stat-card-header">
+        <span class="stat-label">${typeNames[t]}</span>
+        <span class="stat-badge">n=${n} &middot; &Sigma;=${fmtNum(total)}</span>
+      </div>
+      <div class="stat-values">
+        <span class="stat-main">${avg.toFixed(2)}</span>
+        <div class="stat-details">
+          <span>min <b>${fmtNum(mn)}</b></span>
+          <span>max <b>${fmtNum(mx)}</b></span>
+          <span>sd <b>${sd.toFixed(2)}</b></span>
+        </div>
+      </div>
+      <div class="stat-target">
+        Target: <b>${floorCount}</b> entities &rarr; ${floorVal} &nbsp;&middot;&nbsp; <b>${ceilCount}</b> entities &rarr; ${ceilVal}
+      </div>
+    `;
+    bar.appendChild(card);
+  }
+}
+
+function renderAllocationTable() {
+  const head = document.getElementById('allocHead');
+  const body = document.getElementById('allocBody');
+
+  // Header
+  let hhtml = '<tr><th rowspan="2" style="vertical-align:bottom;">Entity</th><th rowspan="2" style="vertical-align:bottom;width:36px;">Lock</th>';
+  for (const tn of typeNames) hhtml += `<th class="col-group-current" style="text-align:center;" colspan="1">${tn}</th>`;
+  hhtml += '';
+  for (const tn of typeNames) hhtml += `<th class="col-group-target" style="text-align:center;" colspan="1">Target</th>`;
+  for (const tn of typeNames) hhtml += `<th class="col-group-diff" style="text-align:center;" colspan="1">Diff</th>`;
+  hhtml += '</tr>';
+  head.innerHTML = hhtml;
+
+  // Body
+  body.innerHTML = '';
+  const filter = document.getElementById('searchBox').value.toLowerCase();
+  let shown = 0;
+
+  for (let i = 0; i < rawData.length; i++) {
+    const r = rawData[i];
+    const t = targets[i];
+    const idStr = String(r.id);
+
+    if (filter && !idStr.toLowerCase().includes(filter)) continue;
+    shown++;
+
+    const isLocked = locked.has(r.id);
+    const tr = document.createElement('tr');
+    if (isLocked) tr.className = 'locked';
+
+    let html = `<td class="cell-entity">${r.id}</td>`;
+    html += `<td><button class="lock-btn ${isLocked ? 'locked' : ''}" onclick="toggleLock(${JSON.stringify(r.id).replace(/"/g, '&quot;')}, this)" title="${isLocked ? 'Unlock' : 'Lock'}">
+      ${isLocked
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
+      }</button></td>`;
+
+    // Current values
+    for (let j = 0; j < typeNames.length; j++) {
+      html += `<td class="cell-current">${fmtNum(r.values[j])}</td>`;
+    }
+
+    // Target values (editable)
+    for (let j = 0; j < typeNames.length; j++) {
+      html += `<td class="cell-target"><input class="target-input" type="number" step="1" min="0" value="${t.values[j]}" data-row="${i}" data-col="${j}" onchange="onTargetEdit(this)" ${isLocked ? 'disabled' : ''}></td>`;
+    }
+
+    // Diffs
+    for (let j = 0; j < typeNames.length; j++) {
+      const diff = t.values[j] - r.values[j];
+      let cls = 'cell-diff-zero';
+      let prefix = '';
+      if (diff > 0.001) { cls = 'cell-diff-positive'; prefix = '+'; }
+      else if (diff < -0.001) { cls = 'cell-diff-negative'; }
+      html += `<td class="${cls}">${prefix}${fmtNum(diff)}</td>`;
+    }
+
+    tr.innerHTML = html;
+    body.appendChild(tr);
+  }
+
+  document.getElementById('filterInfo').textContent = filter ? `${shown} of ${rawData.length}` : `${rawData.length} entities`;
+}
+
+function renderTransfers() {
+  const body = document.getElementById('transferBody');
+  if (transfers.length === 0) {
+    body.innerHTML = `<tr><td colspan="5" class="no-transfers">No transfers needed — stock is already balanced.</td></tr>`;
+    document.getElementById('transferInfo').textContent = 'No transfers';
+    return;
+  }
+
+  let html = '';
+  transfers.forEach((t, i) => {
+    html += `<tr>
+      <td style="color:var(--text-muted)">${i + 1}</td>
+      <td class="transfer-type">${t.type}</td>
+      <td class="transfer-qty">${fmtNum(t.qty)}</td>
+      <td class="transfer-from">Entity ${t.from}</td>
+      <td class="transfer-to">Entity ${t.to}</td>
+    </tr>`;
+  });
+  body.innerHTML = html;
+
+  const totalMoves = transfers.reduce((s, t) => s + t.qty, 0);
+  document.getElementById('transferInfo').textContent = `${transfers.length} transfers · ${fmtNum(totalMoves)} total units moved`;
+}
+
+// ─── INTERACTIONS ───
+function onTargetEdit(input) {
+  const row = parseInt(input.dataset.row);
+  const col = parseInt(input.dataset.col);
+  let val = parseFloat(input.value);
+  if (isNaN(val) || val < 0) val = 0;
+  targets[row].values[col] = val;
+  computeTransfers();
+  renderAll();
+}
+
+function toggleLock(id, btn) {
+  if (locked.has(id)) locked.delete(id);
+  else locked.add(id);
+  calculateTargets();
+  computeTransfers();
+  renderAll();
+}
+
+function resetTargets() {
+  locked.clear();
+  calculateTargets();
+  computeTransfers();
+  renderAll();
+}
+
+function unlockAll() {
+  locked.clear();
+  calculateTargets();
+  computeTransfers();
+  renderAll();
+}
+
+function filterTable() {
+  renderAllocationTable();
+}
+
+function switchTab(el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + el.dataset.tab).classList.add('active');
+}
+
+function resetAll() {
+  rawData = [];
+  targets = [];
+  transfers = [];
+  locked.clear();
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('uploadZone').style.display = '';
+  document.getElementById('headerActions').style.display = 'none';
+  document.getElementById('fileNameDisplay').textContent = '';
+  document.getElementById('fileInput').value = '';
+}
+
+// ─── EXPORT ───
+function exportTargets() {
+  const rows = [['Entity ID', ...typeNames.map(t => `Current ${t}`), ...typeNames.map(t => `Target ${t}`), ...typeNames.map(t => `Diff ${t}`)]];
+  for (let i = 0; i < rawData.length; i++) {
+    const row = [rawData[i].id];
+    for (let j = 0; j < typeNames.length; j++) row.push(rawData[i].values[j]);
+    for (let j = 0; j < typeNames.length; j++) row.push(targets[i].values[j]);
+    for (let j = 0; j < typeNames.length; j++) row.push(targets[i].values[j] - rawData[i].values[j]);
+    rows.push(row);
+  }
+  downloadSheet(rows, 'redistribution_targets');
+}
+
+function exportTransfers() {
+  const rows = [['#', 'Type', 'Quantity', 'From Entity', 'To Entity']];
+  transfers.forEach((t, i) => {
+    rows.push([i + 1, t.type, t.qty, t.from, t.to]);
+  });
+  downloadSheet(rows, 'transfer_manifest');
+}
+
+function downloadSheet(rows, name) {
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX.writeFile(wb, `${name}.xlsx`);
+}
+
+// ─── UTILS ───
+function fmtNum(v) {
+  if (v == null) return '0';
+  const n = parseFloat(v);
+  if (isNaN(n)) return '0';
+  return Number.isInteger(n) ? n.toString() : n.toFixed(1);
+}
+</script>
+</body>
+</html>
