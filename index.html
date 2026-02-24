@@ -441,12 +441,166 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
 
+/* ── SAVE/LOAD MODAL ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 380px;
+}
+.modal h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+.modal-input {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.5rem 0.75rem;
+  color: var(--text);
+  width: 100%;
+  outline: none;
+  margin-bottom: 1rem;
+}
+.modal-input:focus { border-color: var(--accent); }
+.modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+/* ── SAVED SESSIONS LIST ── */
+.saved-sessions {
+  margin-top: 2rem;
+  width: 100%;
+  max-width: 540px;
+}
+.saved-sessions h3 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+.saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.saved-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.saved-item:hover { background: var(--surface-hover); }
+.saved-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+.saved-item-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.saved-item-meta {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.saved-item-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  margin-left: 0.75rem;
+}
+.saved-item-actions button {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: var(--text-muted);
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+}
+.saved-item-actions button:hover { color: var(--negative); border-color: var(--negative-border); }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
-  .header { padding: 1rem; }
-  .upload-box { padding: 2.5rem 2rem; }
+  .header {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .header-left { min-width: 0; }
+  .header h1 { font-size: 0.95rem; }
+  .header h1 small { display: none; }
+  .header-actions {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .header-actions .btn {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.65rem;
+  }
+  .header-actions .btn svg { width: 13px; height: 13px; }
+  .upload-box { padding: 2.5rem 1.5rem; }
   .stats-bar { grid-template-columns: 1fr; }
   .stat-card { padding: 1rem; }
+  .stat-values { flex-direction: column; gap: 0.5rem; }
+  .stat-main { font-size: 1.4rem; }
+  .tab-bar {
+    padding: 0 0.75rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab { padding: 0.75rem 0.85rem; font-size: 0.8rem; }
+  .table-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+  }
+  .table-controls-left { width: 100%; }
+  .search-box { width: 100%; }
+  .table-controls > div { justify-content: flex-end; }
+  .table-wrap { max-height: calc(100vh - 380px); }
+  .data-table td, .data-table th { padding: 0.4rem 0.5rem; font-size: 0.7rem; }
+  .target-input { width: 40px; font-size: 0.7rem; }
+  .transfer-table td, .transfer-table th { padding: 0.4rem 0.6rem; font-size: 0.7rem; }
+  .saved-sessions { padding: 0 1rem; }
 }
 
 /* ── TOOLTIP ── */
@@ -485,6 +639,10 @@ body {
     <h1>Redistribution Planner<small id="fileNameDisplay"></small></h1>
   </div>
   <div class="header-actions" id="headerActions" style="display:none;">
+    <button class="btn btn-primary" onclick="showSaveModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save
+    </button>
     <button class="btn" id="btnReset" onclick="resetAll()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
       New File
@@ -511,6 +669,7 @@ body {
     <p>CSV or XLSX with Entity ID + Type columns</p>
   </div>
   <div class="upload-hint">Columns: Entity ID &middot; Type 1 &middot; Type 2 &middot; Type 3</div>
+  <div class="saved-sessions" id="savedSessions"></div>
 </div>
 
 <!-- APP -->
@@ -921,7 +1080,109 @@ function resetAll() {
   document.getElementById('headerActions').style.display = 'none';
   document.getElementById('fileNameDisplay').textContent = '';
   document.getElementById('fileInput').value = '';
+  renderSavedSessions();
 }
+
+// ─── SAVE / LOAD ───
+const STORAGE_KEY = 'redistribution_saves';
+
+function getSaves() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
+}
+
+function showSaveModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  const fileName = document.getElementById('fileNameDisplay').textContent || 'Untitled';
+  const defaultName = fileName.replace(/\.(csv|xlsx|xls)$/i, '');
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>Save Session</h3>
+      <input class="modal-input" id="saveNameInput" type="text" placeholder="Session name..." value="${defaultName}" autofocus>
+      <div class="modal-actions">
+        <button class="btn" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="btn btn-primary" onclick="doSave()">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const inp = document.getElementById('saveNameInput');
+  inp.focus();
+  inp.select();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') doSave(); });
+}
+
+function doSave() {
+  const inp = document.getElementById('saveNameInput');
+  const name = (inp ? inp.value.trim() : '') || 'Untitled';
+  const saves = getSaves();
+  saves[name] = {
+    rawData,
+    typeNames,
+    targets: targets.map(t => ({ id: t.id, values: [...t.values] })),
+    locked: [...locked],
+    fileName: document.getElementById('fileNameDisplay').textContent,
+    savedAt: new Date().toISOString()
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+  document.querySelector('.modal-overlay')?.remove();
+  renderSavedSessions();
+}
+
+function loadSave(name) {
+  const saves = getSaves();
+  const s = saves[name];
+  if (!s) return;
+  rawData = s.rawData;
+  typeNames = s.typeNames;
+  targets = s.targets;
+  locked = new Set(s.locked || []);
+  computeTransfers();
+  renderAll();
+  document.getElementById('fileNameDisplay').textContent = s.fileName || name;
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('headerActions').style.display = 'flex';
+}
+
+function deleteSave(name, e) {
+  e.stopPropagation();
+  const saves = getSaves();
+  delete saves[name];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(saves));
+  renderSavedSessions();
+}
+
+function renderSavedSessions() {
+  const container = document.getElementById('savedSessions');
+  const saves = getSaves();
+  const keys = Object.keys(saves);
+  if (keys.length === 0) { container.innerHTML = ''; return; }
+  keys.sort((a, b) => (saves[b].savedAt || '').localeCompare(saves[a].savedAt || ''));
+  let html = '<h3>Saved Sessions</h3><div class="saved-list">';
+  for (const name of keys) {
+    const s = saves[name];
+    const date = s.savedAt ? new Date(s.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const entities = s.rawData ? s.rawData.length : '?';
+    const escapedName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    html += `<div class="saved-item" onclick="loadSave('${escapedName}')">
+      <div class="saved-item-info">
+        <span class="saved-item-name">${name}</span>
+        <span class="saved-item-meta">${entities} entities &middot; ${date}</span>
+      </div>
+      <div class="saved-item-actions">
+        <button onclick="deleteSave('${escapedName}', event)" title="Delete">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Render saved sessions on page load
+renderSavedSessions();
 
 // ─── EXPORT ───
 function exportTargets() {
